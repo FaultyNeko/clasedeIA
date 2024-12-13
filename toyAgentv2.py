@@ -4,9 +4,32 @@ import random
 from datetime import datetime
 import time
 import logging
+import matplotlib.pyplot as plt
+from threading import Thread
 
 # Set logging level to DEBUG for osBrain
 logging.getLogger('osbrain').setLevel(logging.DEBUG)
+
+class RealTimeVisualizer:
+    def __init__(self):
+        self.fig, self.ax = plt.subplots()
+        self.product_numbers = []
+        self.sell_prices = []
+
+    def update_graph(self, product_number, sell_price):
+        self.product_numbers.append(product_number)
+        self.sell_prices.append(sell_price)
+        self.ax.clear()
+        self.ax.plot(self.product_numbers, self.sell_prices, marker='o')
+        self.ax.set_title('Auction Results')
+        self.ax.set_xlabel('Product Number')
+        self.ax.set_ylabel('Sell Price')
+        self.ax.grid(True)
+        plt.pause(0.1)
+
+    def start_visualization(self):
+        plt.ion()
+        plt.show()
 
 
 def log_transactions(transactions):
@@ -39,6 +62,11 @@ class Operator(Agent):
         self.transactions = []
         self.current_auction = None
         self.running = True  # Indicates whether the auction is running
+
+          # Real-time visualizer
+        self.visualizer = RealTimeVisualizer()
+        visualizer_thread = Thread(target=self.visualizer.start_visualization, daemon=True)
+        visualizer_thread.start()
 
     def start_auction(self):
         self.auction_next_fish()
