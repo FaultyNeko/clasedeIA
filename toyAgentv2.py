@@ -66,19 +66,22 @@ class Operator(Agent):
         self.log_info(f"Received bid: {bid}")
         merchant_id = bid.get('merchant_id')
         auction = self.current_auction
+
         if auction and not auction['sold']:
             if bid.get('product_number') == auction['product_number']:
-                # Sell the fish
-                self.log_info(f"Fish {auction['product_number']} sold to Merchant {merchant_id} at price {auction['current_price']}.")
+                # Process the sale
+                self.log_info(
+                    f"Fish {auction['product_number']} sold to {merchant_id} at price {auction['current_price']}."
+                )
                 auction['sold'] = True
                 self.transactions.append({
                     'Product': auction['product_number'],
                     'SellPrice': auction['current_price'],
                     'Merchant': merchant_id
                 })
-                # Stop the timer
                 self.stop_timer('price_decrement_timer')
-                # Send confirmation
+
+                # Send confirmation to the buyer
                 confirmation = {
                     'message_type': 'confirmation',
                     'status': 'confirmed',
@@ -88,9 +91,10 @@ class Operator(Agent):
                     'product_type': auction['fish_type']
                 }
                 self.send('publish_channel', confirmation)
-                # Move to the next auction
+
+                # Start the next auction
                 self.auction_next_fish()
-        # If fish already sold or bid is invalid, ignore
+
 
     def check_for_replies(self, *args, **kwargs):
         # To be implemented in subclasses
@@ -300,6 +304,36 @@ class Merchant(Agent):
         self.preferred_price_threshold = 30  # Starting acceptable price for preferred fish
         self.preferred_price_minimum = 10    # Minimum acceptable price for preferred fish
 
+    def join_coalition(self, coalition):
+        """Join an existing coalition."""
+        self.coalition = coalition
+        coalition.members.append(self)
+        coalition.update_budget()
+        self.log_info(f"Joined coalition: {coalition.name}")
+
+    def form_coalitions(merchants):
+        coalitions = []
+        ungrouped_merchants = merchants[:]
+
+        while ungrouped_merchants:
+            # Form a coalition of 2-3 merchants if possible
+            if len(ungrouped_merchants) > 1:
+                members = ungrouped_merchants[:3]
+                coalition_name = f"Coalition_{len(coalitions) + 1}"
+                coalition = Coalition(coalition_name, members)
+                coalitions.append(coalition)
+
+                # Remove merchants from ungrouped list
+                for member in members:
+                    member.join_coalition(coalition)
+                    ungrouped_merchants.remove(member)
+            else:
+                # Single merchant remains, no coalition
+                break
+
+        return coalitions
+
+
     def on_operator_message(self, message):
         message_type = message.get('message_type')
         if message_type == 'auction_info':
@@ -312,36 +346,47 @@ class Merchant(Agent):
         product_type = message.get('product_type')
         price = message.get('price')
 
-        if self.budget >= price and self.current_auctions.get(product_number, {}).get('status') != 'closed':
-            # Store auction details
-            self.current_auctions[product_number] = {
-                'product_type': product_type,
-                'price': price,
-                'status': 'open'
-            }
-
-            # Buying logic
-            should_buy = False
-
-            if product_type == self.preference:
-                # Buy preferred fish if price is within acceptable threshold
-                if price <= self.preferred_price_threshold:
-                    should_buy = True
-            else:
-                # For non-preferred fish, buy at least one if price is discounted
-                if self.inventory_counts[product_type] == 0 and price <= 20:
-                    should_buy = True
-
-            if should_buy:
-                self.log_info(f"Attempting to buy Fish {product_number} at price {price}")
+        if self.coalition:
+            # Coalition-level decision
+            if self.coalition.shared_budget >= price:
+                self.coalition.add_to_inventory(product_number, price)
                 bid = {
-                    'merchant_id': self.name,
+                    'merchant_id': self.coalition.name,
                     'product_number': product_number,
                 }
-                # Send bid to the operator
                 self.send('bid_channel', bid)
-                # Mark auction as pending
-                self.current_auctions[product_number]['status'] = 'pending'
+        else:
+
+            if self.budget >= price and self.current_auctions.get(product_number, {}).get('status') != 'closed':
+                # Store auction details
+                self.current_auctions[product_number] = {
+                    'product_type': product_type,
+                    'price': price,
+                    'status': 'open'
+                }
+
+                # Buying logic
+                should_buy = False
+
+                if product_type == self.preference:
+                    # Buy preferred fish if price is within acceptable threshold
+                    if price <= self.preferred_price_threshold:
+                        should_buy = True
+                else:
+                    # For non-preferred fish, buy at least one if price is discounted
+                    if self.inventory_counts[product_type] == 0 and price <= 20:
+                        should_buy = True
+
+                if should_buy:
+                    self.log_info(f"Attempting to buy Fish {product_number} at price {price}")
+                    bid = {
+                        'merchant_id': self.name,
+                        'product_number': product_number,
+                    }
+                    # Send bid to the operator
+                    self.send('bid_channel', bid)
+                    # Mark auction as pending
+                    self.current_auctions[product_number]['status'] = 'pending'
 
     def on_confirmation(self, message):
         merchant_id = message.get('merchant_id')
@@ -694,6 +739,41 @@ class PoorMerchantQuality(PoorMerchant):
         # Poor merchant ignores quality
 
     # Inherit on_product_info and on_confirmation without changes
+
+
+class Coalition:
+    def __init__(self, name, members):
+        self.name = name
+        self.members = members
+        self.shared_budget = sum(member.budget for member in members)
+        self.inventory = {}
+
+    def update_budget(self):
+        """Recalculate the coalition's shared budget."""
+        self.shared_budget = sum(member.budget for member in self.members)
+
+    def add_to_inventory(self, product, price):
+        """Distribute purchased items among members."""
+        # Simple round-robin allocation
+        for member in self.members:
+            if member.budget >= price:
+                member.budget -= price
+                if product not in member.inventory:
+                    member.inventory[product] = 1
+                else:
+                    member.inventory[product] += 1
+                break
+
+    def log_info(self):
+        """Log coalition's current state."""
+        inventory_summary = {member.name: member.inventory for member in self.members}
+        return {
+            'Coalition Name': self.name,
+            'Shared Budget': self.shared_budget,
+            'Members': [member.name for member in self.members],
+            'Inventory': inventory_summary
+        }
+
 
     # Main program execution
 
