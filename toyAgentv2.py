@@ -11,6 +11,23 @@ logging.getLogger('osbrain').setLevel(logging.DEBUG)
 
 
 
+def read_config_file(file_path):
+    """
+    Reads and parses the configuration file.
+    """
+    config = {}
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line and not line.startswith("#"):  # Ignore comments and empty lines
+                    key, value = line.split(":")
+                    config[key.strip()] = value.strip()
+    except Exception as e:
+        print(f"Error reading configuration file: {e}")
+        exit(1)
+    return config
+
 
 
 def log_transactions(transactions):
@@ -500,31 +517,33 @@ class PoorMerchant(Merchant):
 if __name__ == '__main__':
     ns = run_nameserver()
 
-    # Select operator type
-    operator_type = input("Select the operator version:\n"
-                          "1 for Infinite Operator (no quality)\n"
-                          "2 for Finite Operator (no quality)\n"
-                          "3 for Infinite Operator with Quality\n"
-                          "4 for Finite Operator with Quality\n"
-                          "Your choice: ")
+    # Read configuration file
+    config_file = "config.txt"
+    config = read_config_file(config_file)
+
+    # Extract inputs
+    operator_type = int(config.get('operator_type', 1))
+    total_fish_to_sell = int(config.get('total_fish_to_sell', 10))
+    num_basic_merchants = int(config.get('num_basic_merchants', 0))
+    num_rich_merchants = int(config.get('num_rich_merchants', 0))
+    num_poor_merchants = int(config.get('num_poor_merchants', 0))
+
     operator = None
     use_quality = False
 
-    # Initialize the operator based on user selection
-    if operator_type == '1':
+    # Initialize the operator based on configuration
+    if operator_type == 1:
         operator = run_agent('OperatorInfinite', base=OperatorInfinite)
-    elif operator_type == '2':
-        total_fish_to_sell = int(input("Enter the total number of fish to sell: "))
+    elif operator_type == 2:
         operator = run_agent(
             'OperatorFinite',
             base=OperatorFinite,
             attributes={'total_fish_to_sell': total_fish_to_sell}
         )
-    elif operator_type == '3':
+    elif operator_type == 3:
         operator = run_agent('OperatorInfiniteQuality', base=OperatorInfiniteQuality)
         use_quality = True
-    elif operator_type == '4':
-        total_fish_to_sell = int(input("Enter the total number of fish to sell: "))
+    elif operator_type == 4:
         operator = run_agent(
             'OperatorFiniteQuality',
             base=OperatorFiniteQuality,
@@ -532,40 +551,28 @@ if __name__ == '__main__':
         )
         use_quality = True
     else:
-        print("Invalid operator type selected.")
+        print("Invalid operator type in configuration file.")
         ns.shutdown()
         exit()
 
-    # Prompt user for the number of each merchant type
-    if use_quality:
-        print("Quality logic is enabled for merchants.")
-    num_basic_merchants = int(input("Enter the number of Basic Merchants: "))
-    num_rich_merchants = int(input("Enter the number of Rich Merchants: "))
-    num_poor_merchants = int(input("Enter the number of Poor Merchants: "))
+    print("Quality logic is enabled for merchants.") if use_quality else None
 
+    # Create merchants
     merchants = []  # List to hold all merchant agents
     merchants_info = []  # List to log merchant details
 
-    # Get operator's addresses
     publish_address = operator.addr('publish_channel')
     bid_address = operator.addr('bid_channel')
 
-    # Helper function to create merchants
     def create_merchants(num_merchants, merchant_class, budget):
         """Creates a specified number of merchants and connects them to the operator."""
         for i in range(1, num_merchants + 1):
             merchant_name = f'{merchant_class.__name__}_{i}'
             merchant = run_agent(merchant_name, base=merchant_class)
             merchant.set_attr(budget=budget)
-
-            # Connect the merchant to the operator's publish channel (SUB socket)
             merchant.connect(publish_address, handler='on_operator_message')
-
-            # Bind and connect the merchant's bid channel to the operator
             merchant.bind('PUSH', alias='bid_channel')
             merchant.connect(bid_address, alias='bid_channel')
-
-            # Add to merchants list and log setup info
             merchants.append(merchant)
             merchants_info.append({
                 'Merchant': merchant_name,
@@ -574,7 +581,7 @@ if __name__ == '__main__':
                 'Budget': merchant.get_attr('budget')
             })
 
-    # Create merchants based on user input
+    # Use inputs from the config file
     create_merchants(num_basic_merchants, BasicMerchant, 100)
     create_merchants(num_rich_merchants, RichMerchant, 500)
     create_merchants(num_poor_merchants, PoorMerchant, 50)
@@ -591,7 +598,5 @@ if __name__ == '__main__':
     operator.shutdown()
     for merchant in merchants:
         merchant.shutdown()
-
-    # Shutdown the name server
     ns.shutdown()
 
