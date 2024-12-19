@@ -1,0 +1,39 @@
+# ==========================
+# Auction Simulation Config
+# ==========================
+
+# Select the type of operator for the simulation:
+# 1 - Infinite Operator (no quality)
+# 2 - Finite Operator (no quality)
+# 3 - Infinite Operator with Quality
+# 4 - Finite Operator with Quality
+# Default: 1
+operator_type: 4
+
+# For finite operators (type 2 and 4 only):
+# Specify the total number of fish to sell before the simulation stops.
+# Example: 10
+# Default: 10
+total_fish_to_sell: 5
+
+# Set the number of Basic Merchants:
+# Basic merchants have a budget of 100 and standard logic.
+# Example: 3
+# Default: 0
+num_basic_merchants: 0
+
+# Set the number of Rich Merchants:
+# Rich merchants have a higher budget of 500 and focus on preferred fish.
+# Example: 2
+# Default: 0
+num_rich_merchants: 2
+
+# Set the number of Poor Merchants:
+# Poor merchants have a budget of 50 and only buy heavily discounted fish.
+# Example: 1
+# Default: 0
+num_poor_merchants: 0
+
+# ==========================
+# End of Config
+# ==========================
