@@ -29,6 +29,46 @@ def read_config_file(file_path):
     return config
 
 
+def log_merchants_inventory(merchants):
+    """
+    Logs each merchant's inventory details to a plain text file.
+    """
+    date_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f'merchant_inventory_{date_str}.txt'
+    
+    with open(filename, 'w', encoding='utf-8') as file:
+        file.write("=== Merchant Inventory Report ===\n\n")
+        for merchant in merchants:
+            merchant_name = merchant.get_name()  # Use the exposed method
+            merchant_budget = merchant.get_attr('budget')
+            inventory = merchant.get_attr('inventory')
+
+            # Write Merchant Header
+            file.write(f"Merchant: {merchant_name}\n")
+            file.write(f"Remaining Budget: {merchant_budget}\n")
+            file.write("Inventory:\n")
+            
+            # Check if inventory is empty
+            if not inventory:
+                file.write("  - No items in inventory\n")
+            else:
+                # Write each fish in the inventory
+                for product_number, details in inventory.items():
+                    fish_type = details.get('type', 'Unknown')
+                    quality = details.get('quality', 'N/A')
+                    price = details.get('price', 'N/A')
+                    file.write(f"  - Product {product_number}: Type {fish_type}, Quality {quality}, Price {price}\n")
+            
+            file.write("\n")  # Add spacing between merchants
+        file.write("=== End of Report ===\n")
+    
+    print(f"Merchant inventory report saved to '{filename}'.")
+
+
+
+
+
+
 
 def log_transactions(transactions):
     date_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -336,6 +376,12 @@ class Merchant(Agent):
         self.preferred_price_thresholds = {'good': 30, 'normal': 20, 'bad': 10}
         self.preferred_price_minimums = {'good': 10, 'normal': 10, 'bad': 10}
 
+    def get_name(self):
+        """
+        Return the name of the merchant for external access.
+        """
+        return self.name
+
     def on_operator_message(self, message):
         """Handles incoming messages from the operator."""
         message_type = message.get('message_type')
@@ -450,24 +496,29 @@ class RichMerchant(Merchant):
         self.preferred_price_minimum = 30  # No decrease
 
     def on_confirmation(self, message):
-        # Override to prevent decreasing the price threshold
+        """
+        Handles confirmation of purchase and updates inventory, budget, and price thresholds.
+        """
         merchant_id = message.get('merchant_id')
-        if merchant_id == self.name:
-            product_number = message.get('product_number')
-            price = message.get('price')
-            product_type = message.get('product_type')
-            self.log_info(f"Purchase confirmed for Fish {product_number} at price {price}")
-            self.budget -= price
-            # Update inventory
-            self.inventory[product_number] = {
-                'type': product_type,
-                'price': price
-            }
-            self.inventory_counts[product_type] += 1
-            self.log_info(f"Remaining budget: {self.budget}")
-            # Mark auction as closed
-            self.current_auctions[product_number]['status'] = 'closed'
-            # Do not adjust preferred_price_threshold
+        if merchant_id != self.name:
+            return  # Ignore confirmations not meant for this merchant
+
+        product_number = message.get('product_number')
+        price = message.get('price')
+        product_type = message.get('product_type')
+        quality = message.get('quality', 'N/A')  # Ensure quality is logged correctly
+
+        self.log_info(f"Purchase confirmed for Fish {product_number} at price {price} with quality {quality}")
+        self.budget -= price
+
+        # Update inventory with quality
+        self.inventory[product_number] = {
+            'type': product_type,
+            'quality': quality,
+            'price': price
+        }
+        self.inventory_counts[product_type] += 1
+        self.log_info(f"Remaining budget: {self.budget}")
 
 
 class PoorMerchant(Merchant):
@@ -593,6 +644,8 @@ if __name__ == '__main__':
     # Wait for the auction to finish
     while operator.get_attr('running'):
         time.sleep(1)
+
+    log_merchants_inventory(merchants)
 
     # Shutdown all agents
     operator.shutdown()
