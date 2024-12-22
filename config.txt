@@ -14,25 +14,25 @@ operator_type: 4
 # Specify the total number of fish to sell before the simulation stops.
 # Example: 10
 # Default: 10
-total_fish_to_sell: 5
+total_fish_to_sell: 15
 
 # Set the number of Basic Merchants:
 # Basic merchants have a budget of 100 and standard logic.
 # Example: 3
 # Default: 0
-num_basic_merchants: 0
+num_basic_merchants: 3
 
 # Set the number of Rich Merchants:
 # Rich merchants have a higher budget of 500 and focus on preferred fish.
 # Example: 2
 # Default: 0
-num_rich_merchants: 2
+num_rich_merchants: 1
 
 # Set the number of Poor Merchants:
 # Poor merchants have a budget of 50 and only buy heavily discounted fish.
 # Example: 1
 # Default: 0
-num_poor_merchants: 0
+num_poor_merchants: 2
 
 # ==========================
 # End of Config
