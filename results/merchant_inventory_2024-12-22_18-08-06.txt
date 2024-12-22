@@ -1,0 +1,42 @@
+=== Merchant Inventory Report ===
+
+Merchant: BasicMerchant_1
+Remaining Budget: 70
+Inventory:
+  - Product 2: Type S, Quality good, Price 30
+
+Merchant: BasicMerchant_2
+Remaining Budget: 70
+Inventory:
+  - Product 11: Type S, Quality good, Price 30
+
+Merchant: BasicMerchant_3
+Remaining Budget: 32
+Inventory:
+  - Product 3: Type T, Quality good, Price 14
+  - Product 8: Type S, Quality good, Price 30
+  - Product 14: Type S, Quality good, Price 24
+
+Merchant: RichMerchant_1
+Remaining Budget: 396
+Inventory:
+  - Product 4: Type H, Quality normal, Price 20
+  - Product 7: Type H, Quality normal, Price 20
+  - Product 10: Type H, Quality normal, Price 20
+  - Product 13: Type H, Quality good, Price 30
+  - Product 15: Type T, Quality good, Price 14
+
+Merchant: PoorMerchant_1
+Remaining Budget: 22
+Inventory:
+  - Product 9: Type T, Quality bad, Price 14
+  - Product 12: Type T, Quality normal, Price 14
+
+Merchant: PoorMerchant_2
+Remaining Budget: 8
+Inventory:
+  - Product 1: Type H, Quality bad, Price 14
+  - Product 5: Type S, Quality bad, Price 14
+  - Product 6: Type T, Quality bad, Price 14
+
+=== End of Report ===

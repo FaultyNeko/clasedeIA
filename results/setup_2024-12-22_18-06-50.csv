@@ -1,0 +1,7 @@
+Merchant,Type,Preference,Budget
+BasicMerchant_1,BasicMerchant,S,100
+BasicMerchant_2,BasicMerchant,S,100
+BasicMerchant_3,BasicMerchant,S,100
+RichMerchant_1,RichMerchant,H,500
+PoorMerchant_1,PoorMerchant,H,50
+PoorMerchant_2,PoorMerchant,H,50
